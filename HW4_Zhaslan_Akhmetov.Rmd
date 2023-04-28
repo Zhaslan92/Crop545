@@ -1,0 +1,123 @@
+---
+title: "Homework 4"
+author: "Zhaslan Akhmetov"
+date: "2023-04-28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r cars}
+myGD <- read.table ("C:/Users/zhasl/Documents/WSU 2021-2022/Spring 2023/Statistical Genomics/Homework/Homework 4/GD.txt", header = TRUE)
+str(myGD)
+```
+
+
+
+```{r pressure, echo=FALSE}
+myGM <- read.csv("C:/Users/zhasl/Documents/WSU 2021-2022/Spring 2023/Statistical Genomics/Homework/Homework 4/GM.csv", header = T)
+str(myGM)
+```
+# Calling for GAPIT function 
+```{r}
+source("http://zzlab.net/GAPIT/gapit_functions.txt") 
+```
+# Setting parameters for GAPIT function 
+```{r}
+set.seed(99164)
+n=nrow(myGD)
+testing=sample(n,round(n/5),replace=F)
+training=-testing
+
+set.seed(99164) 
+mySim=GAPIT.Phenotype.Simulation(GD=myGD, GM=myGM,
+h2=.75,
+NQTN=20, 
+QTNDist="normal")
+```
+
+#GWAS BLINK 
+```{r}
+setwd("C:/Users/zhasl/Documents/WSU 2021-2022/Spring 2023/Statistical Genomics/Homework/Homework 4")
+myGAPIT3 <- GAPIT(
+Y=mySim$Y[training,],
+GD=myGD,GM=myGM, PCA.total=3,model="BLINK", QTN.position=mySim$QTN.position,
+memo="GWAS")
+index=myGAPIT3$GWAS[,4]<0.05/length(myGAPIT3$GWAS[,4])
+myQTN=cbind(myGAPIT3$PCA,myGD[,c(FALSE,index)])
+myGD.I=myGD[,c(TRUE,index)]
+myGM.I=myGM[index,]
+
+```
+#MAS correlation on breeding value and predicted value 
+```{r}
+myGAPIT4 <- GAPIT(
+Y=mySim$Y[training,],
+GD=myGD, GM=myGM,
+CV=myQTN, 
+model="GLM", 
+SNP.test=FALSE,
+memo="MAS")
+
+order=match(mySim$Y[,1],myGAPIT4$Pred[,1])
+myPred=myGAPIT4$Pred[order,]
+ru2=cor(myPred[testing,8],mySim$u[testing])^2
+plot(myPred[testing,8],mySim$u[testing])
+mtext(paste("R square=",ru2,sep=""), side = 3)
+
+```
+
+#gBLUP correlation on breeding value and predicted value 
+```{r}
+myGAPIT5 <- GAPIT(
+Y=mySim$Y[training,],
+GD=myGD, 
+GM=myGM,
+PCA.total=3,
+model="gBLUP", 
+SNP.test=FALSE,
+memo="gBLUP")
+
+order5=match(mySim$Y[,1],myGAPIT5$Pred[,1])
+myPred5=myGAPIT5$Pred[order5,]
+ru5=cor(myPred[testing,8],mySim$u[testing])^2
+plot(myPred5[testing,8],mySim$u[testing])
+mtext(paste("R square=",ru5,sep=""), side = 3)
+
+```
+
+# Simulated phenotype distribution 
+```{r}
+d=density(mySim$Y$Sim)
+par(mfrow=c(2,1),mar = c(3,4,1,1))
+plot(d)
+
+```
+#MAS prediction 
+```{r}
+d1=density(myPred$Prediction)
+par(mfrow=c(2,1),mar = c(3,4,1,1))
+plot(d1)
+
+```
+
+#gBlUP prediction 
+```{r}
+d1=density(myPred5$Prediction)
+par(mfrow=c(2,1),mar = c(3,4,1,1))
+plot(d1)
+```
+
+```{r}
+d2=density(myPred5[testing,8])
+par(mfrow=c(2,1),mar = c(3,4,1,1))
+plot(d2)
+```
+
+
+
+
